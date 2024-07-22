@@ -1,0 +1,28 @@
+- client: "this one doesnt matter"
+  endpoint: "opc.tcp://localhost:55000"
+  interval: "i will get rid of this"
+  tags:
+    - id: 1
+      enabled: 1
+      name: "TestNode"
+      description: "A node for testing"
+      address: "ns=1;s=TestNode.testnode.testvalue"
+    - id: 2
+      enabled: 1
+      name: "TestNode2"
+      description: "A node for testing number 2"
+      address: "ns=1;s=TestNode2.testnode2.testvalue"
+- client: "this one doesnt matter"
+  endpoint: "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
+  interval: "i will get rid of this"
+  tags:
+    - id: 1
+      enabled: 1
+      name: "TestNode"
+      description: "A node for testing"
+      address: "ns=1;s=TestNode.testnode.testvalue"
+    - id: 2
+      enabled: 1
+      name: "TestNode2"
+      description: "A node for testing number 2"
+      address: "ns=1;s=TestNode2.testnode2.testvalue"
