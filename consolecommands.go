@@ -53,7 +53,6 @@ func MainLoop(cfgs *[]types.EndpointConfig) {
 
 	for {
 		clearConsole()
-		consoleLog.Println(cfgs)
 		consoleLog.Println("~~~OPCUA LOGGER~~~")
 		consoleLog.Println("1. Изменить интервал запроса.\n2. Вкл/выкл тэгов.\n3. Добавить новый endpoint\nq для выхода")
 
@@ -81,14 +80,17 @@ func MainLoop(cfgs *[]types.EndpointConfig) {
 				TurnOnTagLoop(*cfgs)
 
 			case 3:
-				*cfgs = NewEndpointLoop(*cfgs)
-				if len(*cfgs) != 0 {
-					for i := range *cfgs {
-						(*cfgs)[i].Tags = GetAllNodes((*cfgs)[i])
-						consoleLog.Println(cfg)
-						wait(1000)
-					}
+				NewEndpointLoop(cfgs)
+				if len(*cfgs) == 0 {
+					continue
 				}
+				for i := range *cfgs {
+					if (*cfgs)[i].Tags != nil {
+						continue
+					}
+					(*cfgs)[i].Tags = GetAllNodes((*cfgs)[i])
+				}
+				types.GenerateYaml(cfgs)
 
 			default:
 				consoleLog.Printf("\n\nНеизвестная команда.\n")
@@ -161,17 +163,22 @@ func TurnOnTagLoop(cfgs []types.EndpointConfig) {
 				}
 				switchStatusState(&cfgs[serverID].Tags[temp].Enabled)
 			}
+			types.GenerateYaml(&cfgs)
 		}
 
 	}
 }
 
-func NewEndpointLoop(cfgs []types.EndpointConfig) []types.EndpointConfig {
+func NewEndpointLoop(cfgs *[]types.EndpointConfig) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		clearConsole()
 
 		consoleLog.Println("~~~ДОБАВЛЕНИЕ АДРЕСА~~~")
+		consoleLog.Println("Подключенные сервера:")
+		for i, cfg := range *cfgs {
+			consoleLog.Printf("%d. %s", i+1, cfg.Endpoint)
+		}
 		consoleLog.Println("Введите адрес сервера (прим. localhost:55000)")
 		consoleLog.Println("q для выхода")
 
@@ -202,13 +209,11 @@ func NewEndpointLoop(cfgs []types.EndpointConfig) []types.EndpointConfig {
 		consoleLog.Printf("Соединение с %s установлено", endpoint)
 		wait(1000)
 	}
-	consoleLog.Println(cfgs)
-	if len(cfgs) != 0 {
-		if cfgs[0].Client == nil {
-			cfgs = cfgs[1:]
+	if len(*cfgs) != 0 {
+		if (*cfgs)[0].Client == nil {
+			*cfgs = (*cfgs)[1:]
 		}
 	}
-	return cfgs
 }
 
 // func SubscribtionManagerLoop(cfgs *[]types.EndpointConfig) {
@@ -239,7 +244,7 @@ func NewEndpointLoop(cfgs []types.EndpointConfig) []types.EndpointConfig {
 // 	}
 // }
 
-func GetAllNodes(cfg *types.EndpointConfig) {
+func GetAllNodes(cfg types.EndpointConfig) []types.Tag {
 	log.Println("Getting root node")
 	cfg.Client.Connect(ctx)
 	root := cfg.Client.Node(ua.NewTwoByteNodeID(id.ObjectsFolder))
@@ -253,10 +258,10 @@ func GetAllNodes(cfg *types.EndpointConfig) {
 	log.Println("Success")
 
 	log.Println("Filling config entity with tags")
-	if err = api.FillEndpointConfig(cfg, nodeList); err != nil {
+	if err = api.FillEndpointConfig(&cfg, nodeList); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Success")
 	wait(3000)
-
+	return cfg.Tags
 }
