@@ -53,7 +53,6 @@ func MainLoop(cfgs *[]types.EndpointConfig) {
 
 	for {
 		clearConsole()
-		consoleLog.Println(cfgs)
 		consoleLog.Println("~~~OPCUA LOGGER~~~")
 		consoleLog.Println("1. Изменить интервал запроса.\n2. Вкл/выкл тэгов.\n3. Добавить новый endpoint\nq для выхода")
 
@@ -81,13 +80,18 @@ func MainLoop(cfgs *[]types.EndpointConfig) {
 				TurnOnTagLoop(*cfgs)
 
 			case 3:
-				*cfgs = NewEndpointLoop(*cfgs)
+				NewEndpointLoop(*cfgs)
 				if len(*cfgs) != 0 {
-					for _, cfg := range *cfgs {
-						cfg.Tags = GetAllNodes(cfg)
-						consoleLog.Println(cfg)
-						wait(1000)
+					if (*cfgs)[0].Client == nil {
+						*cfgs = (*cfgs)[1:]
 					}
+					for i := range *cfgs {
+
+						if len((*cfgs)[i].Tags) != 0 {
+							(*cfgs)[i].Tags = GetAllNodes((*cfgs)[i])
+						}
+					}
+
 				}
 
 			default:
@@ -166,7 +170,7 @@ func TurnOnTagLoop(cfgs []types.EndpointConfig) {
 	}
 }
 
-func NewEndpointLoop(cfgs []types.EndpointConfig) []types.EndpointConfig {
+func NewEndpointLoop(cfgs []types.EndpointConfig) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		clearConsole()
@@ -202,13 +206,6 @@ func NewEndpointLoop(cfgs []types.EndpointConfig) []types.EndpointConfig {
 		consoleLog.Printf("Соединение с %s установлено", endpoint)
 		wait(1000)
 	}
-	consoleLog.Println(cfgs)
-	if len(cfgs) != 0 {
-		if cfgs[0].Client == nil {
-			cfgs = cfgs[1:]
-		}
-	}
-	return cfgs
 }
 
 // func SubscribtionManagerLoop(cfgs *[]types.EndpointConfig) {

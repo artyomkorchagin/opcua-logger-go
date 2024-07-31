@@ -19,12 +19,12 @@ import (
 
 func main() {
 	var (
-		endpoint = flag.String("endpoint", "opc.tcp://localhost:4840", "OPC UA Endpoint URL")
-		policy   = flag.String("policy", "", "Security policy: None, Basic128Rsa15, Basic256, Basic256Sha256. Default: auto")
-		mode     = flag.String("mode", "", "Security mode: None, Sign, SignAndEncrypt. Default: auto")
+		endpoint = flag.String("endpoint", "opc.tcp://localhost:55000", "OPC UA Endpoint URL")
+		policy   = flag.String("policy", "None", "Security policy: None, Basic128Rsa15, Basic256, Basic256Sha256. Default: auto")
+		mode     = flag.String("mode", "None", "Security mode: None, Sign, SignAndEncrypt. Default: auto")
 		certFile = flag.String("cert", "", "Path to cert.pem. Required for security mode/policy != None")
 		keyFile  = flag.String("key", "", "Path to private key.pem. Required for security mode/policy != None")
-		nodeID   = flag.String("node", "", "node id to subscribe to")
+		nodeID   = flag.String("node", "script.script.saw", "node id to subscribe to")
 		event    = flag.Bool("event", false, "subscribe to node event changes (Default: node value changes)")
 		interval = flag.Duration("interval", opcua.DefaultSubscriptionInterval, "subscription interval")
 	)
