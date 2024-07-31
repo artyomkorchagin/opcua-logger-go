@@ -41,12 +41,20 @@ func main() {
 	endpointCfgs := types.NewEndpointConfig()
 	log.Println("Success")
 
-	if _, err := os.Stat("configs/service_cfg.yaml"); os.IsNotExist(err) {
+	fi, err := os.Stat("configs/service_cfg.yaml")
+
+	if os.IsNotExist(err) {
 		// if config doesnt exist
 		log.Println("Generating YAML")
 		types.GenerateYaml(endpointCfgs)
 		log.Println("Success")
 
+	}
+	if fi.Size() == 0 {
+		// if config exists but empty
+		log.Println("Generating YAML")
+		types.GenerateYaml(endpointCfgs)
+		log.Println("Success")
 	} else {
 		log.Println("Loading from YAML")
 		endpointCfgs, err = types.GetEndpoints()

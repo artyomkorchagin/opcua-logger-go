@@ -193,12 +193,24 @@ func NewEndpointLoop(cfgs *[]types.EndpointConfig) {
 		c, err := opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
 		if err != nil {
 			consoleLog.Println("Не удалось создать клиент")
-			wait(3000)
+			wait(1500)
 			continue
 		}
 		if err := c.Connect(ctx); err != nil {
 			consoleLog.Println("Не удалось подключиться к серверу")
-			wait(3000)
+			wait(1500)
+			continue
+		}
+		endpointExists := false
+		for _, cfg := range *cfgs {
+			if cfg.Endpoint == endpoint {
+				consoleLog.Println("Такой сервер уже подключен")
+				wait(1500)
+				endpointExists = true
+				break
+			}
+		}
+		if endpointExists {
 			continue
 		}
 		cfg := types.EndpointConfig{
@@ -207,7 +219,7 @@ func NewEndpointLoop(cfgs *[]types.EndpointConfig) {
 		}
 		*cfgs = append(*cfgs, cfg)
 		consoleLog.Printf("Соединение с %s установлено", endpoint)
-		wait(1000)
+		wait(500)
 	}
 	if len(*cfgs) != 0 {
 		if (*cfgs)[0].Client == nil {
@@ -262,6 +274,5 @@ func GetAllNodes(cfg types.EndpointConfig) []types.Tag {
 		log.Fatal(err)
 	}
 	log.Println("Success")
-	wait(3000)
 	return cfg.Tags
 }
