@@ -80,19 +80,23 @@ func MainLoop(cfgs *[]types.EndpointConfig) {
 				TurnOnTagLoop(*cfgs)
 
 			case 3:
-				NewEndpointLoop(*cfgs)
-				if len(*cfgs) != 0 {
-					if (*cfgs)[0].Client == nil {
-						*cfgs = (*cfgs)[1:]
-					}
-					for i := range *cfgs {
-
-						if len((*cfgs)[i].Tags) != 0 {
-							(*cfgs)[i].Tags = GetAllNodes((*cfgs)[i])
-						}
-					}
-
+				NewEndpointLoop(cfgs)
+				consoleLog.Println(len(*cfgs), cfgs)
+				wait(500)
+				if len(*cfgs) == 0 {
+					continue
 				}
+				if (*cfgs)[0].Client == nil {
+					*cfgs = (*cfgs)[1:]
+				}
+				for _, cfg := range *cfgs {
+					if len(cfg.Tags) == 0 {
+						continue
+					}
+					GetAllNodes(&cfg)
+				}
+				consoleLog.Println("success", cfgs)
+				types.GenerateYaml(cfgs)
 
 			default:
 				consoleLog.Printf("\n\nНеизвестная команда.\n")
@@ -170,7 +174,7 @@ func TurnOnTagLoop(cfgs []types.EndpointConfig) {
 	}
 }
 
-func NewEndpointLoop(cfgs []types.EndpointConfig) {
+func NewEndpointLoop(cfgs *[]types.EndpointConfig) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		clearConsole()
@@ -202,7 +206,7 @@ func NewEndpointLoop(cfgs []types.EndpointConfig) {
 			Client:   c,
 			Endpoint: endpoint,
 		}
-		cfgs = append(cfgs, cfg)
+		*cfgs = append(*cfgs, cfg)
 		consoleLog.Printf("Соединение с %s установлено", endpoint)
 		wait(1000)
 	}
@@ -236,7 +240,7 @@ func NewEndpointLoop(cfgs []types.EndpointConfig) {
 // 	}
 // }
 
-func GetAllNodes(cfg types.EndpointConfig) []types.Tag {
+func GetAllNodes(cfg *types.EndpointConfig) {
 	log.Println("Getting root node")
 	cfg.Client.Connect(ctx)
 	root := cfg.Client.Node(ua.NewTwoByteNodeID(id.ObjectsFolder))
@@ -250,11 +254,10 @@ func GetAllNodes(cfg types.EndpointConfig) []types.Tag {
 	log.Println("Success")
 
 	log.Println("Filling config entity with tags")
-	if err = api.FillEndpointConfig(&cfg, nodeList); err != nil {
+	if err = api.FillEndpointConfig(cfg, nodeList); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Success")
 	wait(3000)
-	return cfg.Tags
 
 }
