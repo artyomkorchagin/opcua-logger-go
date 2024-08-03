@@ -1,3 +1,7 @@
+// Copyright 2018-2020 opcua authors. All rights reserved.
+// Use of this source code is governed by a MIT-style license that can be
+// found in the LICENSE file.
+
 package main
 
 import (
@@ -7,11 +11,14 @@ import (
 	"time"
 
 	"github.com/gopcua/opcua"
+	"github.com/gopcua/opcua/debug"
 	"github.com/gopcua/opcua/id"
 	"github.com/gopcua/opcua/ua"
 )
 
-type SubOptions struct {
+// SubOpts holds the subscription options
+type SubOpts struct {
+	HandleID int
 	Endpoint string
 	Policy   string
 	Mode     string
@@ -20,10 +27,12 @@ type SubOptions struct {
 	NodeID   string
 	Event    bool
 	Interval time.Duration
+	Debug    bool
 }
 
 func main() {
-	options := SubOptions{
+	opts := SubOpts{
+		HandleID: 1,
 		Endpoint: "opc.tcp://localhost:4840",
 		Policy:   "",
 		Mode:     "",
@@ -32,99 +41,81 @@ func main() {
 		NodeID:   "",
 		Event:    false,
 		Interval: opcua.DefaultSubscriptionInterval,
+		Debug:    false,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
+	debug.Enable = opts.Debug
+	log.SetFlags(0)
 
-	ep := getEndpoint(ctx, options.Endpoint, options.Policy, options.Mode)
-	c := connectClient(ctx, ep, options.Policy, options.Mode, options.CertFile, options.KeyFile)
-	defer c.Close(ctx)
+	// add an arbitrary timeout to demonstrate how to stop a subscription
+	// with a context.
 
-	sub := createSubscription(ctx, c, options.Interval)
-	defer sub.Cancel(ctx)
+	ctx := context.Background()
 
-	id := parseNodeID(options.NodeID)
-	miCreateRequest, eventFieldNames := createMonitoredItemRequest(id, options.Event)
-	monitorItem(ctx, sub, id, miCreateRequest)
-
-	readNotifications(ctx, sub)
-}
-
-func getEndpoint(ctx context.Context, endpoint, policy, mode string) *ua.EndpointDescription {
-	endpoints, err := opcua.GetEndpoints(ctx, endpoint)
+	endpoints, err := opcua.GetEndpoints(ctx, opts.Endpoint)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ep := opcua.SelectEndpoint(endpoints, policy, ua.MessageSecurityModeFromString(mode))
+	ep := opcua.SelectEndpoint(endpoints, opts.Policy, ua.MessageSecurityModeFromString(opts.Mode))
 	if ep == nil {
 		log.Fatal("Failed to find suitable endpoint")
 	}
-	ep.EndpointURL = endpoint
-	fmt.Println("*", ep.SecurityPolicyURI, ep.SecurityMode)
-	return ep
-}
+	ep.EndpointURL = opts.Endpoint
 
-func connectClient(ctx context.Context, ep *ua.EndpointDescription, policy, mode, certFile, keyFile string) *opcua.Client {
-	opts := []opcua.Option{
-		opcua.SecurityPolicy(policy),
-		opcua.SecurityModeString(mode),
-		opcua.CertificateFile(certFile),
-		opcua.PrivateKeyFile(keyFile),
+	fmt.Println("*", ep.SecurityPolicyURI, ep.SecurityMode)
+
+	clientOpts := []opcua.Option{
+		opcua.SecurityPolicy(opts.Policy),
+		opcua.SecurityModeString(opts.Mode),
+		opcua.CertificateFile(opts.CertFile),
+		opcua.PrivateKeyFile(opts.KeyFile),
 		opcua.AuthAnonymous(),
 		opcua.SecurityFromEndpoint(ep, ua.UserTokenTypeAnonymous),
 	}
 
-	c, err := opcua.NewClient(ep.EndpointURL, opts...)
+	c, err := opcua.NewClient(ep.EndpointURL, clientOpts...)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if err := c.Connect(ctx); err != nil {
 		log.Fatal(err)
 	}
-	return c
-}
+	defer c.Close(ctx)
 
-func createSubscription(ctx context.Context, c *opcua.Client, interval time.Duration) *opcua.Subscription {
 	notifyCh := make(chan *opcua.PublishNotificationData)
+
 	sub, err := c.Subscribe(ctx, &opcua.SubscriptionParameters{
-		Interval: interval,
+		Interval: opts.Interval,
 	}, notifyCh)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer sub.Cancel(ctx)
 	log.Printf("Created subscription with id %v", sub.SubscriptionID)
-	return sub
-}
 
-func parseNodeID(nodeID string) *ua.NodeID {
-	id, err := ua.ParseNodeID(nodeID)
+	id, err := ua.ParseNodeID(opts.NodeID)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return id
-}
 
-func createMonitoredItemRequest(id *ua.NodeID, event bool) (*ua.MonitoredItemCreateRequest, []string) {
-	if event {
-		return eventRequest(id)
+	var miCreateRequest *ua.MonitoredItemCreateRequest
+	var eventFieldNames []string
+	if opts.Event {
+		miCreateRequest, eventFieldNames = eventRequest(id)
+	} else {
+		miCreateRequest = valueRequest(id, opts.HandleID)
 	}
-	return valueRequest(id), nil
-}
-
-func monitorItem(ctx context.Context, sub *opcua.Subscription, id *ua.NodeID, miCreateRequest *ua.MonitoredItemCreateRequest) {
 	res, err := sub.Monitor(ctx, ua.TimestampsToReturnBoth, miCreateRequest)
 	if err != nil || res.Results[0].StatusCode != ua.StatusOK {
 		log.Fatal(err)
 	}
-}
 
-func readNotifications(ctx context.Context, sub *opcua.Subscription) {
+	// read from subscription's notification channel until ctx is cancelled
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case res := <-sub.Notifs:
+		case res := <-notifyCh:
 			if res.Error != nil {
 				log.Print(res.Error)
 				continue
@@ -153,8 +144,8 @@ func readNotifications(ctx context.Context, sub *opcua.Subscription) {
 	}
 }
 
-func valueRequest(nodeID *ua.NodeID) *ua.MonitoredItemCreateRequest {
-	handle := uint32(42)
+func valueRequest(nodeID *ua.NodeID, id int) *ua.MonitoredItemCreateRequest {
+	handle := uint32(id)
 	return opcua.NewMonitoredItemCreateRequestWithDefaults(nodeID, ua.AttributeIDValue, handle)
 }
 
