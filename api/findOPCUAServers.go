@@ -20,7 +20,6 @@ func FindServers(ctx context.Context, endpoint string) ([]types.EndpointConfig, 
 		endpoints = append(endpoints, types.EndpointConfig{
 			Endpoint: server.DiscoveryURLs[0],
 			Tags:     nil,
-			Interval: 100,
 		})
 	}
 	return endpoints, nil

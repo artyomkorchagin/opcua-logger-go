@@ -13,12 +13,12 @@ type Tag struct {
 	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
 	Address     string `yaml:"address"`
+	Interval    int    `yaml:"interval"`
 }
 
 type EndpointConfig struct {
 	Client   *opcua.Client
 	Endpoint string `yaml:"endpoint"`
-	Interval int    `yaml:"interval"`
 	Tags     []Tag  `yaml:"tags"`
 }
 

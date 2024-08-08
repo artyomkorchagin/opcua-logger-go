@@ -47,9 +47,6 @@ func main() {
 	debug.Enable = opts.Debug
 	log.SetFlags(0)
 
-	// add an arbitrary timeout to demonstrate how to stop a subscription
-	// with a context.
-
 	ctx := context.Background()
 
 	endpoints, err := opcua.GetEndpoints(ctx, opts.Endpoint)
